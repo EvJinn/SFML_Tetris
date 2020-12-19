@@ -1,0 +1,517 @@
+﻿#pragma warning(disable : 4996)
+
+#include <SFML/Graphics.hpp>
+#include <time.h>
+#include <sstream>
+#include <fstream>
+#include <string>
+
+using namespace sf;
+
+const float scale = 0.5; //Масштаб
+const int startSpeed = 16;
+//Пути до файлов с ресурсами игры
+const std::string	PathToBlock = "TetrisBlock.png",
+					PathToBackground = "TetrisBackground.png",
+					PathToIcon = "TetrisIcon.png",
+					PathToRectangle = "TetrisRectangle.png",
+					PathToHelpBackground = "TetrisHelpBackground.png",
+					PathToFont = "lcdm2n.ttf",
+					PathToFontCyrillic = "lcdnov_9.ttf";
+
+
+const int M = 20, N = 10;	//Высота и ширина поля
+int field[M][N] = { 0 };	//Само игровое поле
+int figures[7][4] =			//Массив фигур
+{
+	1,3,5,7, // I
+	2,4,5,7, // S
+	3,5,4,6, // Z
+	3,5,4,7, // T
+	2,3,5,7, // L
+	3,5,7,6, // J
+	2,3,4,5, // O
+};
+
+struct Point //Дополнительная вспомогательная структура для хранения координат
+{
+	int x, y;
+}
+a[4], b[4], c[4];
+
+//Основные функции игры
+bool borderCheck() //Проверка границ поля
+{
+	for (int i = 0; i < 4; i++)
+	{
+		if (a[i].x < 0 || a[i].x >= N || a[i].y >= M) return 0; //Проверка границ слева || справа || снизу
+		else if (field[a[i].y][a[i].x]) return 0;				//Проверка ячейки на занятость
+	}
+	return 1;
+};
+
+int randomN[3];
+int randomize(bool* beginGame, int prevn) //Рандомизатор с сохранением истории. Описан в курсовой.
+{
+	randomN[0] = prevn;
+	if (*beginGame == true)
+	{
+		randomN[1] = rand() % 7;
+		randomN[2] = rand() % 7;
+		if (randomN[2] == randomN[1])
+		{
+			randomN[2] = rand() % 7;
+		}
+		return randomN[1];
+	}
+	if (*beginGame == false)
+	{
+		randomN[1] = randomN[2];
+		randomN[2] = rand() % 7;
+		if (randomN[2] == randomN[1])
+		{
+			randomN[2] = rand() % 7;
+		}
+		return randomN[1];
+	}
+};
+
+void beginGameCheck(bool* beginGame, int* n)
+{
+	if (*beginGame) //Проверка начала игры. По сути костыль, чтобы избежать бага с 1 клеткой вместо цельной фигуры вначале.
+	{
+		//n = rand() % 7; //Отладка
+		*n = randomize(*&beginGame, 0);
+		*beginGame = false;
+		for (int i = 0; i < 4; i++)
+		{
+			a[i].x = 4 + figures[*n][i] % 2;
+			a[i].y = figures[*n][i] / 2;
+		}
+	}
+};
+
+bool endGame() //КонецИгры;
+{
+	for (int i = 0; i < M; i++) //Проверяем первую (если считать сверху) строку игрового поля
+		if (field[0][i]) return 0; //Если заполнена хоть одна из ячеек, то возвращаем ноль
+	return 1;
+};
+
+void horizontalMoving(short* dx) //Горизонтальное перемещение
+{
+	for (int i = 0; i < 4; i++) //Перемещение фигуры по полю
+	{
+		b[i] = a[i];	//Запоминаем первоначальные координаты фигуры
+		a[i].x += *dx;	//Горизонтальное
+		//a[i].y += dy; //Вертикальное. Использовалось для отладки
+	}
+	if (!borderCheck())
+		for (int i = 0; i < 4; i++) a[i] = b[i]; //Если вышли заграницу, то возвращаем старые координаты
+};
+
+void verticalMoving(float* timer, float* delay, bool* beginGame, int* n)
+{
+	if (*timer > *delay) //Движение фигур вниз по тику таймера
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			b[i] = a[i]; //Запоминаем старые координаты
+			a[i].y += 1; //Сдвигаем фигуру вниз
+		}
+		if (!borderCheck())
+		{
+			for (int i = 0; i < 4; i++) field[b[i].y][b[i].x] = 1;
+			//n = rand() % 7; //Отладка
+			*n = randomize(beginGame, *n);
+			for (int i = 0; i < 4; i++)
+			{ //Связь локальных координат массива фигур с глобальными координатами массива поля
+				a[i].x = 4 + figures[*n][i] % 2;
+				a[i].y = figures[*n][i] / 2;
+			}
+		}
+		*timer = 0;
+	}
+}
+
+void rotateFigure(bool* rotate) //Поворот фигур
+{
+	if (*rotate == true) //Проверка нажатия клавиши поворота
+	{
+		Point p = a[1]; //Точка вращения в центре фигуры
+		for (int i = 0; i < 4; i++)
+		{
+			//Вращение вокруг заданной точки
+			//x = x0 + (x - x0) * cos(a) - (y - y0) * sin(a)
+			//y = y0 + (y - y0) * cos(a) + (x - x0) * sina(a)
+			//sin(90°) = 1, cos(90°) = 0 следовательно получаем:
+			//x = x0 - (y - y0)
+			//y = y0 + (x - x0)
+
+			int x = a[i].y - p.y; //y - y0
+			int y = a[i].x - p.x; //x - x0
+			a[i].x = p.x - x;
+			a[i].y = p.y + y;
+		}
+		if (!borderCheck())
+			for (int i = 0; i < 4; i++) a[i] = b[i]; //Если вышли заграницу, то возвращаем старые координаты
+	}
+};
+
+void lineCheck(int* score, int* level, int* speed) //Проверка линий
+{
+	int k = M - 1;
+	for (int i = M - 1; i > 0; i--)
+	{
+		int count = 0;
+		for (int j = 0; j < N; j++)
+		{
+			if (field[i][j]) count++;
+			field[k][j] = field[i][j];	
+		}
+		if (count < N) k--;
+		if (count == N)
+		{
+			*score += 100;
+			*level += 1;
+			*speed += 1;
+		}
+	}
+};
+
+void helpWindow(Font fontCyrillic, Image icon)
+{
+	RenderWindow help(VideoMode(1024 * scale, 1035 * scale), "Help", Style::Close);
+	help.setIcon(128, 128, icon.getPixelsPtr()); //Установка иконка с нужным разрешением
+	help.setPosition(sf::Vector2i(10, 10));
+
+	Texture textureHelpBackground;
+	textureHelpBackground.loadFromFile(PathToHelpBackground);
+	
+	Sprite helpBackground(textureHelpBackground);
+	helpBackground.scale(scale, scale);
+
+	Text helpText;
+	helpText.setFont(fontCyrillic);
+	helpText.setCharacterSize(40 * scale);
+	helpText.setColor(Color::Black);
+	helpText.setPosition(4 * scale, 4 * scale);
+
+	std::string text =	"Справка\n\n\nУправление:\n\nУправление в игре производится с помощью клавиш\n\nсо стрелками или клавиш W, A, D и пробел. При этом\n\nстрелки влево и вправо (клавиши A и D) отвечают за\n\nперемещение фигуры по полю влево и вправо\n\nсоответственно. Стрелка вверх и клавиша W\n\nотвечают за поворот фигуры в пространстве.\n\nСтрелка вниз и пробел отвечают за ускорение\n\nпадения фигуры вниз.\n\n\nНачисление очков:\n\nЗа каждую уничтоженную линию вам начисляется\n\n100 очков. Если было уничтожено 4 линии за один\n\nраз, вам дополнительно начислятся 1000 очков.\n\n\nЧтобы закрыть это окно нажмите клавишу ESC.";
+	
+	helpText.setString(text);
+	while (help.isOpen())
+	{
+		help.draw(helpBackground);
+		help.draw(helpText);
+
+		// Обрабатываем события в цикле
+		Event event;
+		while (help.pollEvent(event))
+		{
+			//Если пользователь захотел закрыть окно
+			if (event.type == Event::Closed) help.close(); //Закрываем его (логично)
+			if (event.type == Event::KeyPressed)
+				if (event.key.code == Keyboard::Escape) help.close();
+		}
+		help.display();
+	}
+}
+
+int main()
+{
+	setlocale(LC_ALL, "Russian");
+	srand(time(0));
+	//Объект окна с нужными нам характеристиками - размером окна и его заголовком
+	RenderWindow window(VideoMode(1024 * scale, 1035 * scale), "Tetris", Style::Close | Style::Titlebar);
+
+	Texture textureBlock, textureBackground, textureRectangle;	//Объект текстур
+	textureBlock.loadFromFile(PathToBlock);		//Загрузка из файла
+	textureBackground.loadFromFile(PathToBackground);
+	textureRectangle.loadFromFile(PathToRectangle);
+
+	Sprite block(textureBlock), background(textureBackground), rectangle(textureRectangle); //Объект спрайта с привязанным к нему объектом текстуры
+	
+	//Устанавливаем масштаб для спрайтов, потому что оригинальное разрешение слишком большое окно рисует.
+	background.scale(scale, scale);
+	block.scale(scale, scale);
+	rectangle.scale(scale, scale);
+	
+	rectangle.setPosition(20 * scale, 408 * scale);
+
+	Image icon;										//Объект изображения. Здесь будет иконка приложения
+	icon.loadFromFile(PathToIcon);					//Загрузка из файла
+	window.setIcon(128, 128, icon.getPixelsPtr());	//Установка с нужным разрешением
+
+	Font font, fontCyrillic; //Объект шрифта для отображения текста
+	font.loadFromFile(PathToFont);
+	fontCyrillic.loadFromFile(PathToFontCyrillic); //Кириллический шрифт
+
+	Text highScoreLabel;
+	highScoreLabel.setFont(fontCyrillic);
+	highScoreLabel.setString("High score");
+	highScoreLabel.setCharacterSize(48 * scale);
+	highScoreLabel.setColor(Color::Black);
+	highScoreLabel.setPosition(550 * scale, 2 * scale);
+
+	Text displayHighScore;
+	displayHighScore.setFont(font);
+	displayHighScore.setCharacterSize(48 * scale);
+	displayHighScore.setColor(Color::Black);
+	displayHighScore.setPosition(800 * scale, 2 * scale);
+
+	Text scoreLabel;
+	scoreLabel.setFont(fontCyrillic);
+	scoreLabel.setString("Your score");
+	scoreLabel.setCharacterSize(48 * scale);
+	scoreLabel.setColor(Color::Black);
+	scoreLabel.setPosition(550 * scale, 56 * scale);
+
+	Text displayScore;
+	displayScore.setFont(font);
+	displayScore.setCharacterSize(48 * scale);
+	displayScore.setColor(Color::Black);
+	displayScore.setPosition(800 * scale, 56 * scale);
+
+	Text levelLabel;
+	levelLabel.setFont(fontCyrillic);
+	levelLabel.setString("Level");
+	levelLabel.setCharacterSize(48 * scale);
+	levelLabel.setColor(Color::Black);
+	levelLabel.setPosition(550 * scale, 110 * scale);
+
+	Text displayLevel;
+	displayLevel.setFont(font);
+	displayLevel.setCharacterSize(48 * scale);
+	displayLevel.setColor(Color::Black);
+	displayLevel.setPosition(800 * scale, 110 * scale);
+
+	Text pauseLabel;
+	pauseLabel.setFont(fontCyrillic);
+	pauseLabel.setString("Pause");
+	pauseLabel.setCharacterSize(100 * scale);
+	pauseLabel.setColor(Color::Black);
+	pauseLabel.setPosition(125 * scale, 450 * scale);
+
+	Text gameOverLabel;
+	gameOverLabel.setFont(fontCyrillic);
+	gameOverLabel.setString("Game over!");
+	gameOverLabel.setCharacterSize(90 * scale);
+	gameOverLabel.setColor(Color::Black);
+	gameOverLabel.setPosition(50 * scale, 460 * scale);
+
+	Text startLabel;
+	startLabel.setFont(fontCyrillic);
+	startLabel.setString("      Start \n\n   new game!");
+	startLabel.setCharacterSize(70 * scale);
+	startLabel.setColor(Color::Black);
+	startLabel.setPosition(50 * scale, 424 * scale);
+
+	Text helpLabel;
+	helpLabel.setFont(fontCyrillic);
+	helpLabel.setString("F1 - Help \n\nEnter - Start new game \n\nEsc - Pause");
+	helpLabel.setCharacterSize(44 * scale);
+	helpLabel.setColor(Color::Black);
+	helpLabel.setPosition(540 * scale, 840 * scale);
+
+	Text nextFigureLabel;
+	nextFigureLabel.setFont(fontCyrillic);
+	nextFigureLabel.setString("Next figure:");
+	nextFigureLabel.setCharacterSize(48 * scale);
+	nextFigureLabel.setColor(Color::Black);
+	nextFigureLabel.setPosition(624 * scale, 300 * scale);
+
+	float timer = 0, delay = 1;
+	Clock clock;
+
+	short dx = 0/*, dy = 0*/; //переменные перемещения спрайтов по полю. dy использовалась для отладки
+	bool rotate = false;
+	bool beginGame = true;
+	bool pauseGame = false;
+	bool startGame = false;
+	bool gameOver = false;
+	//int n = rand() % 7; //Отладка
+	int n;
+	int score = 0;
+	int level = 0;
+	int speed = startSpeed;
+
+	//Считываем из файла последний сохранённый лучший результат
+	int highScore = 0;
+	std::ifstream highScoreRead("highScore.txt"); //Открываем файл для чтения
+	if (highScoreRead.is_open()) //Проверка открытия файла
+	{
+		highScoreRead >> highScore; //Если файл открылся, то считываем из него число с лучшим результатом
+		highScoreRead.close();		//Закрываем файл для чтения
+	}
+	else
+	{
+		highScoreRead.close();							//Закрываем файл для чтения
+		std::ofstream highScoreWrite("highScore.txt");	//Открываем файл для записи
+		highScoreWrite << score;						//Записываем в него текущий результат (поскольку игра только запущена будет записан ноль)
+		highScoreWrite.close();							//Закрываем файл для записи
+		highScore = score;
+	}
+
+	// Главный цикл приложения. Выполняется, пока открыто окно
+	while (window.isOpen())
+	{
+		float time = clock.getElapsedTime().asSeconds();
+		clock.restart();
+		timer += time;
+
+		window.draw(background); //отрисовка заднего фона
+		window.draw(highScoreLabel);
+		window.draw(displayHighScore);
+		window.draw(scoreLabel); 
+		window.draw(displayScore);
+		window.draw(levelLabel);
+		window.draw(displayLevel);
+		window.draw(helpLabel);
+		window.draw(nextFigureLabel);
+
+		bool DownKeyPressed = false;
+
+		// Обрабатываем события в цикле
+		Event event;
+		while (window.pollEvent(event))
+		{
+			//Если пользователь захотел закрыть окно
+			if (event.type == Event::Closed) window.close(); //Закрываем его (логично)
+			//Обработка нажатий клавиш на клавиатуре
+			if (event.type == Event::KeyPressed)
+			{
+				if (event.key.code == Keyboard::Up || event.key.code == Keyboard::W) rotate = true;
+				if (event.key.code == Keyboard::Left || event.key.code == Keyboard::A) dx = -1;
+				if (event.key.code == Keyboard::Right || event.key.code == Keyboard::D) dx = 1;
+				if (event.key.code == Keyboard::F1) helpWindow(fontCyrillic, icon);
+				if (event.key.code == Keyboard::Escape)
+					if (!gameOver)
+					{
+						if (!pauseGame) pauseGame = true;
+						else pauseGame = false;
+					}
+				if (event.key.code == Keyboard::Enter)
+				{
+					if (gameOver)
+					{
+						gameOver = false;
+						for (int i = 0; i < M; i++)
+							for (int j = 0; j < N; j++)
+								field[i][j] = 0;
+						score = 0;
+						level = 0;
+						speed = startSpeed;
+					}
+					startGame = true;
+					
+				}
+				if (event.key.code == Keyboard::Space)
+				{
+					DownKeyPressed = true;
+					delay *= 0.05;
+				}
+				//Отладка
+				//if (event.key.code == Keyboard::Down) dy = 1;
+				//if (event.key.code == Keyboard::Up) dy = -1;
+			}
+			if (Keyboard::isKeyPressed(Keyboard::Down))
+			{
+				DownKeyPressed = true;
+				delay *= 0.05;
+			}
+		}
+
+		if (!startGame && !gameOver)
+		{
+			window.draw(rectangle);
+			window.draw(startLabel);
+		}
+
+		if (startGame && !gameOver)
+		{
+			if (!pauseGame)
+			{
+				horizontalMoving(&dx);
+				rotateFigure(&rotate);
+				verticalMoving(&timer, &delay, &beginGame, &n);
+				int templevel = level;
+				lineCheck(&score, &level, &speed);
+				if (level - templevel == 4) score += 1000;
+				beginGameCheck(&beginGame, &n);
+
+				dx = 0;
+				//dy = 0; //Отладка
+				rotate = false;
+				if (DownKeyPressed == true) delay /= 0.05;
+				delay = 1. / (0.5 * (float)sqrt(speed));
+				if (!endGame()) //Проверка верхней границы
+				{
+					startGame = false;
+					if (score > highScore)
+					{
+						std::ofstream highScoreWrite("highScore.txt");
+						highScoreWrite << score;
+						highScoreWrite.close();
+						highScore = score;
+					}
+					gameOver = true;
+				}
+			}
+		}
+
+		//Отрисовка всего того, что понаписано выше
+		for (int i = 0; i < M; i++)
+		{
+			for (int j = 0; j < N; j++)
+			{
+				if (field[i][j] == 0) continue;
+				block.setPosition(j * 51 * scale, i * 51 * scale);
+				block.move(6 * scale, 6 * scale);
+				window.draw(block);
+			}
+		}
+		for (int i = 0; i < 4; i++)
+		{
+			block.setPosition(a[i].x * 51 * scale, a[i].y * 51 * scale);
+			block.move(6 * scale, -44 * scale);
+			window.draw(block);
+			//Отрисовка спрайтов, указывающих на следующую фигуру
+			for (int j = 0; j < 4; j++)
+			{ //Связь локальных координат массива фигур с глобальными координатами массива поля
+				c[j].x = figures[randomN[2]][j] % 2;
+				c[j].y = figures[randomN[2]][j] / 2;
+			}
+			block.setPosition(c[i].x * 51 * scale, c[i].y * 51 * scale);
+			block.move(684 * scale, 380 * scale);
+			window.draw(block);
+		}
+
+		if (gameOver)
+		{
+			window.draw(rectangle);
+			window.draw(gameOverLabel);
+		}
+
+		if (pauseGame)
+		{
+			window.draw(rectangle);
+			window.draw(pauseLabel);
+		}
+		
+		std::ostringstream playerScoreString;
+		playerScoreString << (score);
+		displayScore.setString(playerScoreString.str());
+		
+		std::ostringstream playerLevelString;
+		playerLevelString << (level);
+		displayLevel.setString(playerLevelString.str());
+
+		std::ostringstream highScoreString;
+		highScoreString << (highScore);
+		displayHighScore.setString(highScoreString.str());
+
+		window.display(); //Отрисовка самого окна
+	}
+	return 0;
+}
