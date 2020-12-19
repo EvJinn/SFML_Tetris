@@ -53,12 +53,12 @@ bool borderCheck() //Проверка границ поля
 int randomN[3];
 int randomize(bool* beginGame, int prevn) //Рандомизатор с сохранением истории. Описан в курсовой.
 {
-	randomN[0] = prevn;
-	if (*beginGame == true)
+	randomN[0] = prevn; //Предыдущая фигура
+	if (*beginGame == true) //Проверка начала игры
 	{
 		randomN[1] = rand() % 7;
 		randomN[2] = rand() % 7;
-		if (randomN[2] == randomN[1])
+		if (randomN[2] == randomN[1]) //Сравниваниваем новую фигуру с историей
 		{
 			randomN[2] = rand() % 7;
 		}
@@ -72,7 +72,7 @@ int randomize(bool* beginGame, int prevn) //Рандомизатор с сохр
 		{
 			randomN[2] = rand() % 7;
 		}
-		return randomN[1];
+		return randomN[1]; //Возвращаем центральную полученную фигуру
 	}
 };
 
@@ -91,7 +91,7 @@ void beginGameCheck(bool* beginGame, int* n)
 	}
 };
 
-bool endGame() //КонецИгры;
+bool endGame() //Проверка конца игры
 {
 	for (int i = 0; i < M; i++) //Проверяем первую (если считать сверху) строку игрового поля
 		if (field[0][i]) return 0; //Если заполнена хоть одна из ячеек, то возвращаем ноль
@@ -121,7 +121,7 @@ void verticalMoving(float* timer, float* delay, bool* beginGame, int* n)
 		}
 		if (!borderCheck())
 		{
-			for (int i = 0; i < 4; i++) field[b[i].y][b[i].x] = 1;
+			for (int i = 0; i < 4; i++) field[b[i].y][b[i].x] = 1; //Заполняем ячейки игрового поля фигурой
 			//n = rand() % 7; //Отладка
 			*n = randomize(beginGame, *n);
 			for (int i = 0; i < 4; i++)
@@ -130,7 +130,7 @@ void verticalMoving(float* timer, float* delay, bool* beginGame, int* n)
 				a[i].y = figures[*n][i] / 2;
 			}
 		}
-		*timer = 0;
+		*timer = 0; //Сбрасываем таймер
 	}
 }
 
@@ -181,17 +181,17 @@ void lineCheck(int* score, int* level, int* speed) //Проверка линий
 
 void helpWindow(Font fontCyrillic, Image icon)
 {
-	RenderWindow help(VideoMode(1024 * scale, 1035 * scale), "Help", Style::Close);
-	help.setIcon(128, 128, icon.getPixelsPtr()); //Установка иконка с нужным разрешением
-	help.setPosition(sf::Vector2i(10, 10));
+	RenderWindow help(VideoMode(1024 * scale, 1035 * scale), "Help", Style::Close); //Создание окна справки
+	help.setIcon(128, 128, icon.getPixelsPtr()); //Установка иконки с нужным разрешением
+	help.setPosition(sf::Vector2i(10, 10)); //Устанавливаем позицию окна справки
 
-	Texture textureHelpBackground;
+	Texture textureHelpBackground; //Текстура фона
 	textureHelpBackground.loadFromFile(PathToHelpBackground);
 	
-	Sprite helpBackground(textureHelpBackground);
+	Sprite helpBackground(textureHelpBackground); //Спрайт фона
 	helpBackground.scale(scale, scale);
 
-	Text helpText;
+	Text helpText; 
 	helpText.setFont(fontCyrillic);
 	helpText.setCharacterSize(40 * scale);
 	helpText.setColor(Color::Black);
@@ -202,10 +202,11 @@ void helpWindow(Font fontCyrillic, Image icon)
 	helpText.setString(text);
 	while (help.isOpen())
 	{
+		//Отрисовываем элементы окна
 		help.draw(helpBackground);
 		help.draw(helpText);
 
-		// Обрабатываем события в цикле
+		//Обрабатываем события в цикле
 		Event event;
 		while (help.pollEvent(event))
 		{
@@ -214,6 +215,7 @@ void helpWindow(Font fontCyrillic, Image icon)
 			if (event.type == Event::KeyPressed)
 				if (event.key.code == Keyboard::Escape) help.close();
 		}
+		//Отображаем окно
 		help.display();
 	}
 }
@@ -325,16 +327,17 @@ int main()
 	Clock clock;
 
 	short dx = 0/*, dy = 0*/; //переменные перемещения спрайтов по полю. dy использовалась для отладки
-	bool rotate = false;
-	bool beginGame = true;
-	bool pauseGame = false;
-	bool startGame = false;
-	bool gameOver = false;
+	//Флаги:
+	bool rotate = false;	//Поворот фигуры
+	bool beginGame = true;	//Начало игры
+	bool pauseGame = false; //Пауза
+	bool startGame = false; //Начало новой игры
+	bool gameOver = false;	//Проигрыш
 	//int n = rand() % 7; //Отладка
-	int n;
-	int score = 0;
-	int level = 0;
-	int speed = startSpeed;
+	int n;					//Переменная фигуры
+	int score = 0;			//Набираемые очки
+	int level = 0;			//Уровень
+	int speed = startSpeed; //Скорость
 
 	//Считываем из файла последний сохранённый лучший результат
 	int highScore = 0;
@@ -356,11 +359,12 @@ int main()
 	// Главный цикл приложения. Выполняется, пока открыто окно
 	while (window.isOpen())
 	{
-		float time = clock.getElapsedTime().asSeconds();
-		clock.restart();
-		timer += time;
+		float time = clock.getElapsedTime().asSeconds(); //Получаем время с таймера
+		clock.restart(); //Сбрасываем таймер
+		timer += time; //Прибавляем полученное время
 
-		window.draw(background); //отрисовка заднего фона
+		//Отрисовка текстов и спрайта фона
+		window.draw(background);
 		window.draw(highScoreLabel);
 		window.draw(displayHighScore);
 		window.draw(scoreLabel); 
@@ -370,7 +374,7 @@ int main()
 		window.draw(helpLabel);
 		window.draw(nextFigureLabel);
 
-		bool DownKeyPressed = false;
+		bool DownKeyPressed = false; //Флаг проверки нажатия клавиши ускорения фигуры
 
 		// Обрабатываем события в цикле
 		Event event;
@@ -381,21 +385,22 @@ int main()
 			//Обработка нажатий клавиш на клавиатуре
 			if (event.type == Event::KeyPressed)
 			{
-				if (event.key.code == Keyboard::Up || event.key.code == Keyboard::W) rotate = true;
-				if (event.key.code == Keyboard::Left || event.key.code == Keyboard::A) dx = -1;
-				if (event.key.code == Keyboard::Right || event.key.code == Keyboard::D) dx = 1;
-				if (event.key.code == Keyboard::F1) helpWindow(fontCyrillic, icon);
-				if (event.key.code == Keyboard::Escape)
-					if (!gameOver)
+				if (event.key.code == Keyboard::Up || event.key.code == Keyboard::W) rotate = true; //Стрелка вверх
+				if (event.key.code == Keyboard::Left || event.key.code == Keyboard::A) dx = -1;		//Стрелка влево
+				if (event.key.code == Keyboard::Right || event.key.code == Keyboard::D) dx = 1;		//Стрелка вправо
+				if (event.key.code == Keyboard::F1) helpWindow(fontCyrillic, icon);					//F1. Вызывает справку и передаёт ей фон и иконку
+				if (event.key.code == Keyboard::Escape)												//ESC. 
+					if (!gameOver) //Если игра не закончена
 					{
-						if (!pauseGame) pauseGame = true;
-						else pauseGame = false;
+						if (!pauseGame) pauseGame = true;	//И если не пауза, то ставим игру на паузу
+						else pauseGame = false;				//Иначе снимаем игру с паузы
 					}
-				if (event.key.code == Keyboard::Enter)
+				if (event.key.code == Keyboard::Enter) //Enter
 				{
-					if (gameOver)
+					if (gameOver) //Если игра окончена
 					{
-						gameOver = false;
+						gameOver = false; //Снимаем флаг окончания игры
+						//Очищаем поле и обнулем очки, уровень и скорость
 						for (int i = 0; i < M; i++)
 							for (int j = 0; j < N; j++)
 								field[i][j] = 0;
@@ -403,32 +408,32 @@ int main()
 						level = 0;
 						speed = startSpeed;
 					}
-					startGame = true;
+					startGame = true; //Поднимаем флаг начала новой игры
 					
 				}
-				if (event.key.code == Keyboard::Space)
+				if (event.key.code == Keyboard::Space) //Пробел. Из-за некоторых особенностей идёт проверка одиночного нажатия, а не зажатия клавиши, хотя принцип работы такой же как у проверки стрелки вниз
 				{
-					DownKeyPressed = true;
-					delay *= 0.05;
+					DownKeyPressed = true;	//Поднимаем флаг нажатия клавиши вниз
+					delay *= 0.05;			//Уменьшаем задержку таймера для ускорения падения фигуры вниз
 				}
 				//Отладка
 				//if (event.key.code == Keyboard::Down) dy = 1;
 				//if (event.key.code == Keyboard::Up) dy = -1;
 			}
-			if (Keyboard::isKeyPressed(Keyboard::Down))
-			{
+			if (Keyboard::isKeyPressed(Keyboard::Down)) //Стрелка вниз
+			{ //Логика такая же как у пробела
 				DownKeyPressed = true;
 				delay *= 0.05;
 			}
 		}
 
-		if (!startGame && !gameOver)
+		if (!startGame && !gameOver) //Если у нас первый запуск, то отображаем окно с предложением начать новую игру
 		{
 			window.draw(rectangle);
 			window.draw(startLabel);
 		}
 
-		if (startGame && !gameOver)
+		if (startGame && !gameOver) //Если игра началась, но не проиграна, то выполняем игровую логику
 		{
 			if (!pauseGame)
 			{
@@ -487,12 +492,12 @@ int main()
 			window.draw(block);
 		}
 
+		//Если игра окончена или стоит на паузе, то отображаем соответствующие сообщения
 		if (gameOver)
 		{
 			window.draw(rectangle);
 			window.draw(gameOverLabel);
 		}
-
 		if (pauseGame)
 		{
 			window.draw(rectangle);
