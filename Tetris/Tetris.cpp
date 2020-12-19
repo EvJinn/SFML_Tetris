@@ -437,30 +437,30 @@ int main()
 		{
 			if (!pauseGame)
 			{
-				horizontalMoving(&dx);
-				rotateFigure(&rotate);
-				verticalMoving(&timer, &delay, &beginGame, &n);
-				int templevel = level;
-				lineCheck(&score, &level, &speed);
-				if (level - templevel == 4) score += 1000;
-				beginGameCheck(&beginGame, &n);
+				horizontalMoving(&dx);							//Горизонтальное движение
+				rotateFigure(&rotate);							//Поворот фигуры
+				verticalMoving(&timer, &delay, &beginGame, &n);	//Вертикальное движение
+				int templevel = level;							//Сохраняем текущий уровень
+				lineCheck(&score, &level, &speed);				//Проверка линий для удаления заполненных
+				if (level - templevel == 4) score += 1000;		//Если удалилось сразу 4 линии, то начисляем дополнительные очки
+				beginGameCheck(&beginGame, &n);					//Костыль проверки начала игры (суть описана в самой функции)
 
-				dx = 0;
+				dx = 0;				//Обнуляем направление движения
 				//dy = 0; //Отладка
-				rotate = false;
-				if (DownKeyPressed == true) delay /= 0.05;
-				delay = 1. / (0.5 * (float)sqrt(speed));
+				rotate = false;		//Убираем флаг поворота
+				if (DownKeyPressed == true) delay /= 0.05;	//Если было ускорение, то возвращаем задержку таймера на прежний уровень
+				delay = 1. / (0.5 * (float)sqrt(speed));	//Расчитываем скорость согласно изменению уровня (если оно вообще было)
 				if (!endGame()) //Проверка верхней границы
 				{
-					startGame = false;
-					if (score > highScore)
+					startGame = false; //Опускаем флаг начала новой игры
+					if (score > highScore) //Если набранные очки больше лучшего результата
 					{
-						std::ofstream highScoreWrite("highScore.txt");
-						highScoreWrite << score;
-						highScoreWrite.close();
-						highScore = score;
+						std::ofstream highScoreWrite("highScore.txt");	//Открываем файл для записи
+						highScoreWrite << score;						//Записываем в него результат
+						highScoreWrite.close();							//Закрываем файл
+						highScore = score;								//Записываем в переменную лучшего результата текущий
 					}
-					gameOver = true;
+					gameOver = true; //Поднимаем флаг окончания игры
 				}
 			}
 		}
@@ -504,6 +504,8 @@ int main()
 			window.draw(pauseLabel);
 		}
 		
+
+		//Преобразование чисел в строки, для того чтобы добавить их в отображаемые текстовые поля
 		std::ostringstream playerScoreString;
 		playerScoreString << (score);
 		displayScore.setString(playerScoreString.str());
