@@ -78,7 +78,7 @@ void beginGameCheck(bool* beginGame, int* n)
 		*n = randomize(*&beginGame, 0);
 		*beginGame = false;
 		for (int i = 0; i < 4; i++)
-		{
+		{ //Связь локальных координат массива фигур с глобальными координатами массива поля
 			a[i].x = 4 + figures[*n][i] % 2;
 			a[i].y = figures[*n][i] / 2;
 		}
