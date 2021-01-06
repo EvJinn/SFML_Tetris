@@ -58,20 +58,14 @@ int randomize(bool* beginGame, int prevn) //Рандомизатор с сохр
 	{
 		randomN[1] = rand() % 7;
 		randomN[2] = rand() % 7;
-		if (randomN[2] == randomN[1]) //Сравниваниваем новую фигуру с историей
-		{
-			randomN[2] = rand() % 7;
-		}
+		if (randomN[2] == randomN[1]) randomN[2] = rand() % 7; //Сравниваниваем новую фигуру с историей
 		return randomN[1];
 	}
 	if (*beginGame == false)
 	{
-		randomN[1] = randomN[2];
-		randomN[2] = rand() % 7;
-		if (randomN[2] == randomN[1])
-		{
-			randomN[2] = rand() % 7;
-		}
+		randomN[1] = randomN[2]; //Перемещаем третий элемент во вторую ячейку
+		randomN[2] = rand() % 7; //Генерируем новую третью фигуру (для истории)
+		if (randomN[2] == randomN[1]) randomN[2] = rand() % 7;
 		return randomN[1]; //Возвращаем центральную полученную фигуру
 	}
 };
